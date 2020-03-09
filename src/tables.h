@@ -292,6 +292,7 @@ private:
 
 	bool from_raw_form(const raw_form_tree *rs, form *&froot);
 	bool to_pnf( form *&froot);
+	bool to_pnf_opt( form *&froot);
 public:
 	tables(bool bproof = false, bool optimize = true,
 		bool bin_transform = false, bool print_transformed = false);
@@ -351,12 +352,15 @@ struct transformer {
 	virtual bool apply(form *&root) = 0;
 	form::ftype getdual( form::ftype type);
 	virtual bool traverse(form *&);
+	static bool applyall(form *& root, std::vector<transformer&> &pre, std::vector<transformer&> &post );
+	virtual ~transformer() {}
 };
 
 
 struct implic_removal : public transformer {
 	 
 	 virtual bool apply(form *&root);
+	 ~implic_removal(){}
 };
 
 struct demorgan : public transformer {
@@ -368,6 +372,7 @@ struct demorgan : public transformer {
 	demorgan(bool _allow_neg_move_quant =false){
 		allow_neg_move_quant = _allow_neg_move_quant;
 	}
+	~demorgan(){}
 };
 
 struct pull_quantifier: public transformer {
@@ -376,12 +381,13 @@ struct pull_quantifier: public transformer {
 	virtual bool apply( form *&root);
 	virtual bool traverse( form *&root);
 	bool dosubstitution(form * phi, form* end);
+	 ~pull_quantifier(){}
 }; 
 struct substitution: public transformer {
 	
 	std::map<int_t, int_t> submap_var;
 	std::map<int_t, int_t> submap_sym;
-
+	
 	void clear() { submap_var.clear(); submap_sym.clear();}
 	void add( int_t oldn, int_t newn) {
 		if(oldn < 0)
@@ -391,7 +397,41 @@ struct substitution: public transformer {
 	}
 	
 	virtual bool apply(form *&phi);
+	~substitution(){ submap_sym.clear(), submap_var.clear(); }
+};
+struct pnf_transformer {
 	
+	std::vector<transformer*> pre;
+	std::vector<transformer*> post;
+	
+	pnf_transformer(dict_t &t) {
+		pre.emplace_back(new implic_removal());
+		pre.emplace_back(new demorgan(true));
+		post.emplace_back(new pull_quantifier(t));
+	}
+	bool traverse(form *& root) {
+
+		bool changed  = false;
+		if( root == NULL ) return false; 
+
+		for ( transformer *tran : pre)
+			changed = tran->apply(root);
+
+		if( root->l ) changed |= traverse(root->l );
+		if( root->r ) changed |= traverse(root->r );
+
+		for ( transformer *tran: post)
+			changed = tran->apply(root);
+
+		return changed;
+	}
+	~pnf_transformer() {
+		for ( transformer *tran: post)
+			delete tran;
+		for ( transformer *tran : pre)
+			delete tran;
+
+	}
 };
 
 std::wostream& operator<<(std::wostream& os, const vbools& x);

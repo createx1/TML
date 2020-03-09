@@ -806,13 +806,21 @@ bool tables::to_pnf( form *&froot) {
 	bool changed = false;
 	changed = impltrans.traverse(froot);
 	changed |= demtrans.traverse(froot);
-	wprintf(L"\n ........... \n");
-	froot->printnode();			
+//	wprintf(L"\n ........... \n");
+//	froot->printnode();			
 	changed |= pullquant.traverse(froot);
-	wprintf(L"\n ........... \n");
-	froot->printnode();
+//  wprintf(L"\n ........... \n");
+//	froot->printnode();
 
 	return changed;
+
+}
+
+bool tables::to_pnf_opt( form *&froot) {
+	
+	pnf_transformer pnf(this->dict);
+	return pnf.traverse(froot);
+
 
 }
 flat_prog tables::to_terms(const raw_prog& p) {
@@ -836,13 +844,17 @@ flat_prog tables::to_terms(const raw_prog& p) {
 			
 			form* froot = NULL;
 			from_raw_form(r.prft.get(), froot);
-
-			wprintf(L"\n ........... \n");
+			clock_t start, end;
+			/*wprintf(L"\n ........... \n");
 			r.prft.get()->printTree();
 			wprintf(L"\n ........... \n");
 			froot->printnode();
-
-			to_pnf(froot);
+			*/
+			measure_time(to_pnf(froot));
+			//measure_time(to_pnf_opt(froot));
+			/*wprintf(L"\n ........... \n");
+			froot->printnode();
+			*/
 
 			if(froot) delete froot;
 	
